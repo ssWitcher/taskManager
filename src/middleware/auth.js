@@ -10,11 +10,9 @@ const auth = async(req, res, next) => {
         throw new Error();
     }
     req.user = user;
-    next()
     }catch(e){
-        res.status(401).send("Unable to verify user's identity");
+        return res.status(401).send("Unable to verify user's identity");
     }
-    
     next();
 }
 
