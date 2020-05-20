@@ -7,7 +7,12 @@ const auth = require('../middleware/auth');
 router.post('/users/login', async (req,res) => {
     try {
     const user = await User.findByCredentials(req.body.email, req.body.password);
-    const token = await user.generateToken();
+    let token = 0;
+    if(user._id){   
+        token = await user.generateToken();
+    }else{
+        throw new Error('User not found')
+    }
     res.send({
         user,
         token
@@ -17,6 +22,28 @@ router.post('/users/login', async (req,res) => {
         return res.status(401).send();
     }
 })
+
+router.get('/users/logout', auth, async (req,res) => {
+   try {
+        req.user.tokens = req.user.tokens.filter((token)=> {
+            return token.token !== req.token
+        })
+        await req.user.save();
+        return res.send('Successfully Logged Out');
+    }catch(e) {
+        return res.status(500).send()
+    }
+})
+
+router.get('/users/logoutall', auth, async (req,res) => {
+    try {
+         req.user.tokens = [];
+         await req.user.save();
+         return res.send('Successfully Logged Out');
+     }catch(e) {
+         return res.status(500).send()
+     }
+ })
 
 router.post('/users', async (req, res) => {
     const user = new User(req.body);
@@ -36,21 +63,7 @@ router.get('/users/me', auth, async (req,res) => {
 
 })
 
-router.get('/users/:id', async (req,res) => {
-    const _id = req.params.id;
-    try {
-        const result = await User.findById(_id);
-        if(!result){
-            return res.status(404).send();
-        }
-        return res.send(result);
-        
-    } catch(error){
-        return res.status(500).send(error);
-    }
-})
-
-router.patch('/users/:id', async (req,res) => {
+router.patch('/users/me', auth, async (req,res) => {
     const allowedUpdates = ['name', 'email', 'password','age']
     const updates = Object.keys(req.body);
     const isValidOperation = updates.every( update => allowedUpdates.includes(update))
@@ -59,25 +72,19 @@ router.patch('/users/:id', async (req,res) => {
     }
     try {
         //const result = await User.findByIdAndUpdate(req.params.id, req.body, {new: true, runValidators: true})
-        const result = await User.findById(req.params.id);
-        updates.forEach(update => result[update] = req.body[update]);
-        await result.save();
-        if(!result) {
-            return res.status(404).send();
-        }
-        return res.send(result);
+        updates.forEach(update => req.user[update] = req.body[update]);
+        await req.user.save();
+        return res.send(req.user);
     }catch(err){
-        return res.status(400).send();
+        console.log(err);
+        return res.status(500).send();
     }
 })
 
-router.delete('/users/:id', async (req,res) => {
+router.delete('/users/me', auth, async (req,res) => {
     try {
-        const result = await User.findByIdAndDelete(req.params.id);
-        if(!result){
-            return res.status(404).send(result);
-        }
-        return res.send(result);
+        await req.user.delete()
+        return res.send(req.user);
     }catch(err){
         return res.status(500).send();
     }

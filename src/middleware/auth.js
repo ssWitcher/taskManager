@@ -5,11 +5,12 @@ const auth = async(req, res, next) => {
     try {
     const token = req.header('Authorization').replace('Bearer ','');
     const decoded = jwt.verify(token, 'thisisastringtogeneratetoken');
-    const user = await User.findOne({_id: decoded, 'tokens.token': token});
+    const user = await User.findOne({_id: decoded._id, 'tokens.token': token});
     if(!user) {
         throw new Error();
     }
     req.user = user;
+    req.token = token;
     }catch(e){
         return res.status(401).send("Unable to verify user's identity");
     }
